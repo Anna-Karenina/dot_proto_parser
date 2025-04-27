@@ -10,8 +10,6 @@ pub struct ProtoParser {
     pending_comments: Vec<String>,
 }
 
-impl NameFormatter for ProtoParser {}
-
 impl ProtoParser {
     pub fn new() -> Self {
         Self {

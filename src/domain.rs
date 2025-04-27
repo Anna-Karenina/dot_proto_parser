@@ -2,7 +2,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt;
 
-use crate::ConverterError;
+use crate::{ConverterError, NameFormatter};
 
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ProtoFile {
@@ -14,6 +14,8 @@ pub struct ProtoFile {
     pub enums: Vec<Enum>,
     pub services: Vec<Service>,
 }
+
+impl NameFormatter for ProtoFile {}
 
 impl ProtoFile {
     pub fn new(package: &str) -> Self {
