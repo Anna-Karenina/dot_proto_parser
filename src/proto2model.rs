@@ -1,13 +1,16 @@
 use std::path::Path;
 
 use crate::{
-    Enum, EnumValue, Error, Field, FieldRule, Message, Method, ProtoFile, ProtoParseError, Service,
+    Enum, EnumValue, Error, Field, FieldRule, Message, Method, NameFormatter, ProtoFile,
+    ProtoParseError, Service,
 };
 
 pub struct ProtoParser {
     current_line: usize,
     pending_comments: Vec<String>,
 }
+
+impl NameFormatter for ProtoParser {}
 
 impl ProtoParser {
     pub fn new() -> Self {
