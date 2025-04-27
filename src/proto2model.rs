@@ -6,11 +6,15 @@ use crate::{
 
 pub struct ProtoParser {
     current_line: usize,
+    pending_comments: Vec<String>,
 }
 
 impl ProtoParser {
     pub fn new() -> Self {
-        Self { current_line: 0 }
+        Self {
+            current_line: 0,
+            pending_comments: Vec::new(),
+        }
     }
 
     pub fn parse_file(&mut self, path: &Path) -> Result<ProtoFile, Error> {
@@ -26,31 +30,49 @@ impl ProtoParser {
             self.current_line = line_num + 1;
             let line = line.trim();
 
-            if line.is_empty() || line.starts_with("//") {
+            if line.is_empty() {
                 continue;
             }
 
             match self.parse_line(line, &mut stack)? {
-                LineType::Syntax(s) => proto_file.syntax = s,
-                LineType::Package(p) => proto_file.package = p,
-                LineType::Import(i) => proto_file.imports.push(i),
-                // LineType::Option(k, v) => {
-                //     proto_file.options.insert(k, v);
-                // }
-                LineType::Message(m) => stack.push(ProtoItem::Message(m)),
-                LineType::Enum(e) => stack.push(ProtoItem::Enum(e)),
-                LineType::Service(s) => stack.push(ProtoItem::Service(s)),
-                LineType::Field(f) => {
+                LineType::Syntax(s) => {
+                    proto_file.syntax = s;
+                    self.pending_comments.clear();
+                }
+                LineType::Package(p) => {
+                    proto_file.package = p;
+                    self.pending_comments.clear();
+                }
+                LineType::Import(i) => {
+                    proto_file.imports.push(i);
+                    self.pending_comments.clear();
+                }
+                LineType::Message(mut m) => {
+                    m.comments = std::mem::take(&mut self.pending_comments);
+                    stack.push(ProtoItem::Message(m));
+                }
+                LineType::Enum(mut e) => {
+                    e.comments = std::mem::take(&mut self.pending_comments);
+                    stack.push(ProtoItem::Enum(e));
+                }
+                LineType::Service(mut s) => {
+                    s.comments = std::mem::take(&mut self.pending_comments);
+                    stack.push(ProtoItem::Service(s));
+                }
+                LineType::Field(mut f) => {
+                    f.comments = std::mem::take(&mut self.pending_comments);
                     if let Some(ProtoItem::Message(msg)) = stack.last_mut() {
                         msg.add_field(f)?;
                     }
                 }
-                LineType::EnumValue(v) => {
+                LineType::EnumValue(mut v) => {
+                    v.comments = std::mem::take(&mut self.pending_comments);
                     if let Some(ProtoItem::Enum(en)) = stack.last_mut() {
                         en.add_value(v)?;
                     }
                 }
-                LineType::Method(m) => {
+                LineType::Method(mut m) => {
+                    m.comments = std::mem::take(&mut self.pending_comments);
                     if let Some(ProtoItem::Service(svc)) = stack.last_mut() {
                         svc.add_method(m)?;
                     }
@@ -63,14 +85,26 @@ impl ProtoParser {
                             ProtoItem::Service(s) => proto_file.add_service(s)?,
                         }
                     }
+                    self.pending_comments.clear();
                 }
+                LineType::Comment => {}
             }
         }
 
         Ok(proto_file)
     }
 
-    fn parse_line(&self, line: &str, stack: &[ProtoItem]) -> Result<LineType, ProtoParseError> {
+    fn parse_line(&mut self, line: &str, stack: &[ProtoItem]) -> Result<LineType, ProtoParseError> {
+        if line.is_empty() {
+            return Ok(LineType::Comment);
+        }
+
+        if line.starts_with("//") {
+            let comment = line[2..].trim().to_string();
+            self.pending_comments.push(comment);
+            return Ok(LineType::Comment);
+        }
+
         if line == "}" {
             return Ok(LineType::End);
         }
@@ -105,21 +139,6 @@ impl ProtoParser {
             ));
         }
 
-        // if line.starts_with("option") {
-        //     let option_part = line.trim_start_matches("option").trim();
-        //     let parts: Vec<&str> = option_part.splitn(2, '=').collect();
-        //     if parts.len() != 2 {
-        //         return Err(self.parse_error("Invalid option format"));
-        //     }
-        //     return Ok(LineType::Option(
-        //         parts[0].trim().to_string(),
-        //         parts[1]
-        //             .trim()
-        //             .trim_matches(|c| c == '"' || c == ';')
-        //             .to_string(),
-        //     ));
-        // }
-
         if line.starts_with("message") {
             let name = line["message".len()..].split('{').next().unwrap().trim();
             if name.is_empty() {
@@ -146,15 +165,27 @@ impl ProtoParser {
 
         if line.starts_with("rpc") {
             let parts: Vec<&str> = line.split_whitespace().collect();
-            dbg!(&parts);
             if parts.len() < 5 {
                 return Err(self.parse_error("Invalid method declaration"));
             }
-            return Ok(LineType::Method(Method::new(
+
+            let mut method = Method::new(
                 parts[1],
                 parts[3].trim_matches('('),
                 parts[4].trim_matches(')'),
-            )));
+            );
+
+            if let Some(options_start) = line.find('[') {
+                let options_str = &line[options_start..].trim_matches(|c| c == '[' || c == ']');
+                for option in options_str.split(',') {
+                    let option = option.trim();
+                    if let Some((key, value)) = option.split_once('=') {
+                        method.add_option(key.trim(), value.trim().trim_matches('"'));
+                    }
+                }
+            }
+
+            return Ok(LineType::Method(method));
         }
 
         if let Some(ProtoItem::Message(_)) = stack.last() {
@@ -168,7 +199,7 @@ impl ProtoParser {
         Err(self.parse_error("Unknown line type"))
     }
 
-    fn parse_field(&self, line: &str) -> Result<LineType, ProtoParseError> {
+    fn parse_field(&mut self, line: &str) -> Result<LineType, ProtoParseError> {
         let line = line.trim_end_matches(';');
         let parts: Vec<&str> = line.split_whitespace().collect();
 
@@ -208,6 +239,7 @@ impl ProtoParser {
             .map_err(|_| self.parse_error("Invalid field number"))?;
 
         let mut field = Field::new(&name, &type_, number, rule);
+        field.comments = std::mem::take(&mut self.pending_comments);
 
         if let Some(options_start) = line.find('[') {
             let options_str = &line[options_start..].trim_matches(|c| c == '[' || c == ']');
@@ -222,7 +254,7 @@ impl ProtoParser {
         Ok(LineType::Field(field))
     }
 
-    fn parse_enum_value(&self, line: &str) -> Result<LineType, ProtoParseError> {
+    fn parse_enum_value(&mut self, line: &str) -> Result<LineType, ProtoParseError> {
         let line = line.trim_end_matches(';');
         let parts: Vec<&str> = line.split_whitespace().collect();
 
@@ -230,12 +262,15 @@ impl ProtoParser {
             return Err(self.parse_error("Invalid enum value declaration"));
         }
 
-        Ok(LineType::EnumValue(EnumValue::new(
+        let mut value = EnumValue::new(
             parts[0],
             parts[2]
                 .parse()
                 .map_err(|_| self.parse_error("Invalid enum value number"))?,
-        )))
+        );
+
+        value.comments = std::mem::take(&mut self.pending_comments);
+        Ok(LineType::EnumValue(value))
     }
 
     fn parse_error(&self, msg: &str) -> ProtoParseError {
@@ -256,7 +291,6 @@ enum LineType {
     Syntax(String),
     Package(String),
     Import(String),
-    // Option(String, String),
     Message(Message),
     Enum(Enum),
     Service(Service),
@@ -264,4 +298,5 @@ enum LineType {
     EnumValue(EnumValue),
     Method(Method),
     End,
+    Comment,
 }
