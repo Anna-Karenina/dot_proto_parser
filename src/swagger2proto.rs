@@ -85,7 +85,6 @@ impl SwaggerToProtoConverter {
         self.current_refs.push(name.to_string());
 
         let mut message = Message::new(name);
-        let mut field_number = 1;
 
         if let Some(description) = &schema.description {
             description.lines().for_each(|line| {
@@ -221,7 +220,6 @@ impl SwaggerToProtoConverter {
                 });
             }
 
-            // Обрабатываем enum поля
             let type_name = if let Some(enum_values) = &prop_schema.enum_values {
                 let enum_name = format!("{}{}", message_name, self.to_pascal_case(prop_name));
                 let mut enum_def = Enum::new(&enum_name);
@@ -383,7 +381,6 @@ impl SwaggerToProtoConverter {
             }
             Some("object") => {
                 if schema.properties.is_some() || schema.all_of.is_some() {
-                    // Generate nested message for complex objects
                     let temp_name = format!("NestedObject_{}", random::<u32>());
                     let message = self.convert_schema_to_message(
                         &temp_name,
@@ -440,7 +437,6 @@ impl SwaggerToProtoConverter {
     ) -> Result<(), ConverterError> {
         let mut services: BTreeMap<String, Vec<(String, String, &Operation)>> = BTreeMap::new();
 
-        // Get definitions and components
         let definitions = spec.definitions.as_ref().unwrap_or_else(|| {
             static EMPTY: once_cell::sync::Lazy<HashMap<String, Schema>> =
                 once_cell::sync::Lazy::new(|| HashMap::new());

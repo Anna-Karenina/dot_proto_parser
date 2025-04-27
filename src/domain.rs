@@ -16,7 +16,6 @@ pub struct ProtoFile {
 }
 
 impl ProtoFile {
-    /// Creates a new ProtoFile with default syntax (proto3)
     pub fn new(package: &str) -> Self {
         Self {
             syntax: "proto3".to_string(),
@@ -30,14 +29,12 @@ impl ProtoFile {
         }
     }
 
-    /// Adds an import to the proto file
     pub fn add_import(&mut self, import_path: &str) {
         if !self.imports.contains(&import_path.to_string()) {
             self.imports.push(import_path.to_string());
         }
     }
 
-    /// Adds a message to the proto file
     pub fn add_message(&mut self, message: Message) -> Result<(), ConverterError> {
         if self.messages.iter().any(|m| m.name == message.name) {
             return Err(ConverterError::DuplicateMessageName(message.name));
@@ -46,7 +43,6 @@ impl ProtoFile {
         Ok(())
     }
 
-    /// Adds an enum to the proto file
     pub fn add_enum(&mut self, enum_def: Enum) -> Result<(), ConverterError> {
         if self.enums.iter().any(|e| e.name == enum_def.name) {
             return Err(ConverterError::DuplicateMessageName(enum_def.name));
@@ -55,7 +51,6 @@ impl ProtoFile {
         Ok(())
     }
 
-    /// Adds a service to the proto file
     pub fn add_service(&mut self, service: Service) -> Result<(), ConverterError> {
         if self.services.iter().any(|s| s.name == service.name) {
             return Err(ConverterError::DuplicateMessageName(service.name));
@@ -64,35 +59,28 @@ impl ProtoFile {
         Ok(())
     }
 
-    /// Finds a message by name (mutable reference)
     pub fn find_message_mut(&mut self, name: &str) -> Option<&mut Message> {
         self.messages.iter_mut().find(|m| m.name == name)
     }
 
-    /// Finds a message by name (immutable reference)
     pub fn find_message(&self, name: &str) -> Option<&Message> {
         self.messages.iter().find(|m| m.name == name)
     }
 
-    /// Finds a service by name (mutable reference)
     pub fn find_service_mut(&mut self, name: &str) -> Option<&mut Service> {
         self.services.iter_mut().find(|s| s.name == name)
     }
 
-    /// Finds a service by name (immutable reference)
     pub fn find_service(&self, name: &str) -> Option<&Service> {
         self.services.iter().find(|s| s.name == name)
     }
 
-    /// Converts the ProtoFile to its textual representation
     pub fn to_proto_text(&self) -> String {
         let mut output = String::new();
 
-        // Header
         output.push_str(&format!("syntax = \"{}\";\n\n", self.syntax));
         output.push_str(&format!("package {};\n\n", self.package));
 
-        // Imports
         for import in &self.imports {
             output.push_str(&format!("import \"{}\";\n", import));
         }
@@ -100,7 +88,6 @@ impl ProtoFile {
             output.push_str("\n");
         }
 
-        // Options
         // for (key, value) in &self.options {
         //     output.push_str(&format!("option {} = \"{}\";\n", key, value));
         // }
@@ -108,17 +95,14 @@ impl ProtoFile {
         //     output.push_str("\n");
         // }
 
-        // Messages
         for message in &self.messages {
             output.push_str(&message.to_proto_text(0));
         }
 
-        // Enums
         for enum_def in &self.enums {
             output.push_str(&enum_def.to_proto_text(0));
         }
 
-        // Services
         for service in &self.services {
             output.push_str(&service.to_proto_text());
         }
@@ -127,7 +111,6 @@ impl ProtoFile {
     }
 }
 
-/// Represents a Protocol Buffers message
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Message {
     pub name: String,
@@ -138,7 +121,6 @@ pub struct Message {
 }
 
 impl Message {
-    /// Creates a new Message with the given name
     pub fn new(name: &str) -> Self {
         Self {
             name: name.to_string(),
@@ -146,12 +128,10 @@ impl Message {
         }
     }
 
-    /// Adds a comment line to the message
     pub fn add_comment(&mut self, comment: &str) {
         self.comments.push(comment.to_string());
     }
 
-    /// Adds a field to the message
     pub fn add_field(&mut self, field: Field) -> Result<(), ConverterError> {
         if self.fields.iter().any(|f| f.name == field.name) {
             return Err(ConverterError::InvalidFieldName(format!(
@@ -163,7 +143,6 @@ impl Message {
         Ok(())
     }
 
-    /// Adds a nested message
     pub fn add_nested_message(&mut self, message: Message) -> Result<(), ConverterError> {
         if self.nested_messages.iter().any(|m| m.name == message.name) {
             return Err(ConverterError::DuplicateMessageName(message.name));
@@ -172,7 +151,6 @@ impl Message {
         Ok(())
     }
 
-    /// Adds a nested enum
     pub fn add_nested_enum(&mut self, enum_def: Enum) -> Result<(), ConverterError> {
         if self.nested_enums.iter().any(|e| e.name == enum_def.name) {
             return Err(ConverterError::DuplicateMessageName(enum_def.name));
@@ -181,42 +159,35 @@ impl Message {
         Ok(())
     }
 
-    /// Converts the Message to its textual representation
     pub fn to_proto_text(&self, indent_level: usize) -> String {
         let indent = "  ".repeat(indent_level);
         let mut output = String::new();
 
-        // Comments
         for comment in &self.comments {
             output.push_str(&format!("{}// {}\n", indent, comment));
         }
 
-        // Message header
         output.push_str(&format!("{}message {} {{\n", indent, self.name));
 
-        // Fields
         for field in &self.fields {
             output.push_str(&field.to_proto_text(indent_level + 1));
         }
 
-        // Nested messages
         for message in &self.nested_messages {
             output.push_str(&message.to_proto_text(indent_level + 1));
         }
 
-        // Nested enums
         for enum_def in &self.nested_enums {
             output.push_str(&enum_def.to_proto_text(indent_level + 1));
         }
 
-        // Closing brace
         output.push_str(&format!("{}}}\n\n", indent));
 
         output
     }
 }
 
-/// Represents a Protocol Buffers field
+/// Represents a protofile
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Field {
     pub name: String,
