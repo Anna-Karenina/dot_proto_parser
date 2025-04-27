@@ -1,0 +1,288 @@
+syntax = "proto3";
+
+package api;
+
+import "google/protobuf/empty.proto";
+import "google/protobuf/timestamp.proto";
+import "google/protobuf/struct.proto";
+
+message Tag {
+  optional string name = 1;
+  optional int64 id = 2;
+}
+
+// // Order Status
+message Order {
+  optional bool complete = 1;
+  optional int64 id = 2;
+  optional int64 petId = 3;
+  optional OrderStatus status = 4;
+  optional int32 quantity = 5;
+  optional google.protobuf.Timestamp shipDate = 6;
+}
+
+message Category {
+  optional int64 id = 1;
+  optional string name = 2;
+}
+
+// // User Status
+message User {
+  optional string phone = 1;
+  optional string lastName = 2;
+  optional string password = 3;
+  optional string username = 4;
+  optional string email = 5;
+  optional int64 id = 6;
+  optional int32 userStatus = 7;
+  optional string firstName = 8;
+}
+
+message ApiResponse {
+  optional string message = 1;
+  optional string type = 2;
+  optional int32 code = 3;
+}
+
+message stringList {
+  repeated string items = 1;
+}
+
+message TagList {
+  repeated Tag items = 1;
+}
+
+// // pet status in the store
+message Pet {
+  optional int64 id = 1;
+  optional stringList photoUrls = 2;
+  optional Category category = 3;
+  optional TagList tags = 4;
+  optional PetStatus status = 5;
+  string name = 6;
+}
+
+// ID of pet to return
+message PetGETPetpetIdQueryParams {
+  int64 petId = 1;
+}
+
+// ID of pet that needs to be updated
+message PetPOSTPetpetIdQueryParams {
+  int64 petId = 1;
+}
+
+// Pet id to delete
+message PetDELETEPetpetIdQueryParams {
+  int64 petId = 1;
+}
+
+// Tags to filter by
+message PetGETPetfindByTagsQueryParams {
+  string tags = 1;
+}
+
+// Pet object that needs to be added to the store
+message PetPOSTPetRequestBody {
+  // Content-Type: application/json
+  optional Pet data = 1;
+}
+
+// Pet object that needs to be added to the store
+message PetPUTPetRequestBody {
+  // Content-Type: application/json
+  optional Pet data = 1;
+}
+
+// Status values that need to be considered for filter
+message PetGETPetfindByStatusQueryParams {
+  string status = 1;
+}
+
+// ID of pet to update
+message PetPOSTPetpetIduploadImageQueryParams {
+  int64 petId = 1;
+}
+
+// order placed for purchasing the pet
+message StorePOSTStoreorderRequestBody {
+  // Content-Type: application/json
+  optional Order data = 1;
+}
+
+// ID of pet that needs to be fetched
+message StoreGETStoreorderorderIdQueryParams {
+  int64 orderId = 1;
+}
+
+// ID of the order that needs to be deleted
+message StoreDELETEStoreorderorderIdQueryParams {
+  int64 orderId = 1;
+}
+
+// The name that needs to be fetched. Use user1 for testing. 
+message UserGETUserusernameQueryParams {
+  string username = 1;
+}
+
+// name that need to be updated
+message UserPUTUserusernameQueryParams {
+  string username = 1;
+}
+
+// Updated user object
+message UserPUTUserusernameRequestBody {
+  // Content-Type: application/json
+  optional User data = 1;
+}
+
+message UserPUTUserusernameRequest {
+  optional UserPUTUserusernameQueryParams params = 1;
+  optional UserPUTUserusernameRequestBody body = 2;
+}
+
+// The name that needs to be deleted
+message UserDELETEUserusernameQueryParams {
+  string username = 1;
+}
+
+// The user name for login
+// The password for login in clear text
+message UserGETUserloginQueryParams {
+  string username = 1;
+  string password = 2;
+}
+
+// List of user object
+message UserPOSTUsercreateWithArrayRequestBody {
+  // Content-Type: application/json
+  repeated User data = 1;
+}
+
+// Created user object
+message UserPOSTUserRequestBody {
+  // Content-Type: application/json
+  optional User data = 1;
+}
+
+// List of user object
+message UserPOSTUsercreateWithListRequestBody {
+  // Content-Type: application/json
+  repeated User data = 1;
+}
+
+message PetList {
+  repeated Pet data = 1;
+}
+
+enum OrderStatus {
+   PLACED = 0;
+   APPROVED = 1;
+   DELIVERED = 2;
+}
+
+enum PetStatus {
+   AVAILABLE = 0;
+   PENDING = 1;
+   SOLD = 2;
+}
+
+service PetService {
+  // Find pet by ID
+  // Returns a single pet
+  // HTTP: GET /pet/{petId}
+  rpc GETPetpetId (PetGETPetpetIdQueryParams) returns (Pet);
+
+  // Updates a pet in the store with form data
+  // HTTP: POST /pet/{petId}
+  rpc POSTPetpetId (PetPOSTPetpetIdQueryParams) returns (google.protobuf.Empty);
+
+  // Deletes a pet
+  // HTTP: DELETE /pet/{petId}
+  rpc DELETEPetpetId (PetDELETEPetpetIdQueryParams) returns (google.protobuf.Empty);
+
+  // Finds Pets by tags
+  // Multiple tags can be provided with comma separated strings. Use tag1, tag2, tag3 for testing.
+  // Deprecated
+  // HTTP: GET /pet/findByTags
+  rpc GETPetfindByTags (PetGETPetfindByTagsQueryParams) returns (Pet);
+
+  // Add a new pet to the store
+  // HTTP: POST /pet
+  rpc POSTPet (PetPOSTPetRequestBody) returns (google.protobuf.Empty);
+
+  // Update an existing pet
+  // HTTP: PUT /pet
+  rpc PUTPet (PetPUTPetRequestBody) returns (google.protobuf.Empty);
+
+  // Finds Pets by status
+  // Multiple status values can be provided with comma separated strings
+  // HTTP: GET /pet/findByStatus
+  rpc GETPetfindByStatus (PetGETPetfindByStatusQueryParams) returns (PetList);
+
+  // uploads an image
+  // HTTP: POST /pet/{petId}/uploadImage
+  rpc POSTPetpetIduploadImage (PetPOSTPetpetIduploadImageQueryParams) returns (ApiResponse);
+
+}
+
+service StoreService {
+  // Place an order for a pet
+  // HTTP: POST /store/order
+  rpc POSTStoreorder (StorePOSTStoreorderRequestBody) returns (Order);
+
+  // Find purchase order by ID
+  // For valid response try integer IDs with value >= 1 and <= 10. Other values will generated exceptions
+  // HTTP: GET /store/order/{orderId}
+  rpc GETStoreorderorderId (StoreGETStoreorderorderIdQueryParams) returns (Order);
+
+  // Delete purchase order by ID
+  // For valid response try integer IDs with positive integer value. Negative or non-integer values will generate API errors
+  // HTTP: DELETE /store/order/{orderId}
+  rpc DELETEStoreorderorderId (StoreDELETEStoreorderorderIdQueryParams) returns (google.protobuf.Empty);
+
+  // Returns pet inventories by status
+  // Returns a map of status codes to quantities
+  // HTTP: GET /store/inventory
+  rpc GETStoreinventory (google.protobuf.Empty) returns (google.protobuf.Struct);
+
+}
+
+service UserService {
+  // Get user by user name
+  // HTTP: GET /user/{username}
+  rpc GETUserusername (UserGETUserusernameQueryParams) returns (User);
+
+  // Updated user
+  // This can only be done by the logged in user.
+  // HTTP: PUT /user/{username}
+  rpc PUTUserusername (UserPUTUserusernameRequest) returns (google.protobuf.Empty);
+
+  // Delete user
+  // This can only be done by the logged in user.
+  // HTTP: DELETE /user/{username}
+  rpc DELETEUserusername (UserDELETEUserusernameQueryParams) returns (google.protobuf.Empty);
+
+  // Logs user into the system
+  // HTTP: GET /user/login
+  rpc GETUserlogin (UserGETUserloginQueryParams) returns (Pet);
+
+  // Creates list of users with given input array
+  // HTTP: POST /user/createWithArray
+  rpc POSTUsercreateWithArray (UserPOSTUsercreateWithArrayRequestBody) returns (google.protobuf.Empty);
+
+  // Create user
+  // This can only be done by the logged in user.
+  // HTTP: POST /user
+  rpc POSTUser (UserPOSTUserRequestBody) returns (google.protobuf.Empty);
+
+  // Logs out current logged in user session
+  // HTTP: GET /user/logout
+  rpc GETUserlogout (google.protobuf.Empty) returns (google.protobuf.Empty);
+
+  // Creates list of users with given input array
+  // HTTP: POST /user/createWithList
+  rpc POSTUsercreateWithList (UserPOSTUsercreateWithListRequestBody) returns (google.protobuf.Empty);
+
+}
+

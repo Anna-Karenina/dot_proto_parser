@@ -12,3 +12,7 @@ To run it you can just make a
 From a box, it will take a file with the name swagger.json (*included in repo, but you can put your own*) and return a file with the name api.proto
 
 *fn main is created just for the sake of example*
+
+
+upd: 
+also while refactoring i'm adding a .proto to ProtoFile model parser
