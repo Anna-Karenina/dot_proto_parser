@@ -833,7 +833,7 @@ impl SwaggerToProtoConverter {
         }
     }
 
-    fn sanitize_field_name(&self, name: &str) -> String {
+    pub fn sanitize_field_name(&self, name: &str) -> String {
         let mut sanitized = String::with_capacity(name.len());
         let mut prev_was_underscore = false;
 
@@ -875,7 +875,7 @@ impl SwaggerToProtoConverter {
         sanitized
     }
 
-    fn to_pascal_case(&self, s: &str) -> String {
+    pub fn to_pascal_case(&self, s: &str) -> String {
         s.split(|c: char| !c.is_alphanumeric())
             .filter(|part| !part.is_empty())
             .map(|part| {
